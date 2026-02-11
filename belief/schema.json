@@ -118,7 +118,17 @@
     {
       "id": "intro",
       "title": "Intro",
-      "src": "./content/intro.md"
+      "src": "./content/Belief/intro.md"
     }
-  ]
+  ],
+  "contentMap": {
+    "Belief": "./content/Belief/belief.md",
+    "Probability": "./content/Belief/probability.md",
+    "Likelihood": "./content/Belief/likelihood.md",
+    "Evidence": "./content/Belief/evidence.md",
+    "Data": "./content/Belief/DATA.md",
+    "Truth": "./content/Belief/TRUTH.md",
+    "Trust": "./content/Belief/TRUST.md",
+    "Identity": "./content/Belief/IDENTITY.md"
+  }
 }

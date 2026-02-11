@@ -32,9 +32,18 @@
     .toc-items{display:flex;flex-direction:column;gap:8px}
     .toc-item{text-align:left;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.12);cursor:pointer;color:var(--text);font-size:14px;}
     .toc-item:hover{background:rgba(255,255,255,.06)}
-    #content{padding:14px;overflow:auto;line-height:1.45}
-    #content h1,#content h2,#content h3{margin-top:1.0em}
-    #content code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
+    .pane{display:flex;flex-direction:column;min-height:0;}
+    .pane-h{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .pane-h:first-of-type{border-top:0}
+    .pane-h h2{margin:0;font-size:15px;color:var(--text)}
+    .pane-b{padding:14px;overflow:auto;line-height:1.45;min-height:0}
+    .pane-b h1,.pane-b h2,.pane-b h3{margin-top:1.0em}
+    .pane-b code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
+    #paperPane{flex:1.25}
+    #contextPane{flex:1.0}
+    #notesPane{flex:0.75}
+    #notesBox{width:100%;height:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.12);color:var(--text);padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;line-height:1.35;resize:none;}
+    #notesBox:disabled{opacity:0.65}
   </style>
 </head>
 <body>
@@ -53,8 +62,26 @@
         <h2>TOC</h2>
         <div id="tocItems" class="toc-items"></div>
       </div>
-      <div id="content">
-        <p style="color:var(--muted);margin:0">Select a TOC item to render its text here.</p>
+
+      <div id="paperPane" class="pane">
+        <div class="pane-h"><h2>Paper</h2></div>
+        <div id="paper" class="pane-b">
+          <p style="color:var(--muted);margin:0">Select a TOC item to render its text here.</p>
+        </div>
+      </div>
+
+      <div id="contextPane" class="pane">
+        <div class="pane-h"><h2>Context</h2></div>
+        <div id="reader" class="pane-b">
+          <p style="color:var(--muted);margin:0">Click a face or label to load its prose here.</p>
+        </div>
+      </div>
+
+      <div id="notesPane" class="pane">
+        <div class="pane-h"><h2>Notes</h2></div>
+        <div class="pane-b">
+          <textarea id="notesBox" disabled>Notes will land here. (Saving comes later.)</textarea>
+        </div>
       </div>
     </div>
   </div>

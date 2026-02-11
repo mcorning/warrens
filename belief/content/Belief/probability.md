@@ -1,0 +1,1 @@
+In our argument probability is not merely a property of nature. We hold that probability is a measure of belief given all the evidence at hand.
