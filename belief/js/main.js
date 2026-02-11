@@ -4,6 +4,37 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const $ = (id) => document.getElementById(id);
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
+const escHtml = (s) =>
+  String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+function mdToHtml(md) {
+  const lines = String(md ?? "").split(/\r?\n/);
+  let out = [];
+  let inCode = false;
+
+  for (const line of lines) {
+    if (line.trim().startsWith("```")) {
+      inCode = !inCode;
+      out.push(inCode ? "<pre><code>" : "</code></pre>");
+      continue;
+    }
+    if (inCode) {
+      out.push(escHtml(line));
+      continue;
+    }
+    if (line.startsWith("# ")) out.push(`<h1>${escHtml(line.slice(2))}</h1>`);
+    else if (line.startsWith("## ")) out.push(`<h2>${escHtml(line.slice(3))}</h2>`);
+    else if (line.startsWith("### ")) out.push(`<h3>${escHtml(line.slice(4))}</h3>`);
+    else if (line.trim() === "") out.push("");
+    else out.push(`<p>${escHtml(line)}</p>`);
+  }
+  return out.join("\n");
+}
+
+
 async function loadSchema() {
   const res = await fetch("./schema.json", { cache: "no-store" });
   if (!res.ok) throw new Error(`schema.json load failed: ${res.status}`);
@@ -12,7 +43,7 @@ async function loadSchema() {
 
 async function loadTOC(schema) {
   const tocHost = $("tocItems");
-  const content = $("content");
+  const content = $("paper");
   if (!tocHost || !content) return;
 
   tocHost.innerHTML = "";
@@ -20,33 +51,6 @@ async function loadTOC(schema) {
   const setContent = (html) => {
     content.innerHTML = html;
     content.scrollTop = 0;
-  };
-
-  const mdToHtml = (md) => {
-    const esc = (s) =>
-      s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-
-    const lines = md.split(/\r?\n/);
-    let out = [];
-    let inCode = false;
-
-    for (const line of lines) {
-      if (line.trim().startsWith("```")) {
-        inCode = !inCode;
-        out.push(inCode ? "<pre><code>" : "</code></pre>");
-        continue;
-      }
-      if (inCode) {
-        out.push(esc(line));
-        continue;
-      }
-      if (line.startsWith("# ")) out.push(`<h1>${esc(line.slice(2))}</h1>`);
-      else if (line.startsWith("## ")) out.push(`<h2>${esc(line.slice(3))}</h2>`);
-      else if (line.startsWith("### ")) out.push(`<h3>${esc(line.slice(4))}</h3>`);
-      else if (line.trim() === "") out.push("");
-      else out.push(`<p>${esc(line)}</p>`);
-    }
-    return out.join("\n");
   };
 
   for (const item of schema.toc ?? []) {
@@ -63,6 +67,29 @@ async function loadTOC(schema) {
       }
     });
     tocHost.appendChild(btn);
+  }
+}
+
+async function loadLabelProse(schema, labelKeyOrName) {
+  const reader = $("reader");
+  if (!reader) return;
+
+  const map = schema?.contentMap ?? {};
+  const src = map[labelKeyOrName] ?? map[String(labelKeyOrName ?? "").toUpperCase()] ?? null;
+
+  if (!src) {
+    reader.innerHTML = `<p style="color:var(--muted);margin:0">No prose mapped for <b>${escHtml(labelKeyOrName)}</b>.</p>`;
+    return;
+  }
+
+  try {
+    const r = await fetch(src, { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const md = await r.text();
+    reader.innerHTML = mdToHtml(md);
+    reader.scrollTop = 0;
+  } catch (e) {
+    reader.innerHTML = `<p style="color:#ffb4b4;margin:0">Failed to load: ${escHtml(src)} (${escHtml(e?.message || e)})</p>`;
   }
 }
 
@@ -158,91 +185,136 @@ function projectToScreen(vec3, camera, canvas) {
  *    Data = remaining vertex (back-ish)
  * - Build faces opposite each semantic vertex with per-face colors.
  */
+/**
+ * Schema-driven tetrahedron (topology is authoritative):
+ * - Use THREE.TetrahedronGeometry(radius) to obtain the 4 unique vertex positions.
+ * - Use schema.topology.faces (triples of vertex indices 0..3) to define the 4 faces.
+ * - Derive semantic vertex positions as the vertex opposite each named face.
+ * - Rotate so the semantic "Identity" vertex (Belief) is aligned with WORLD_UP (+Y).
+ * - Apply an additional yaw so the semantic "Trust" vertex (Probability) sits on +X.
+ */
 function buildSemanticTetrahedron(schema) {
   const radius = schema.geometry?.radius ?? 1.0;
 
   const base = new THREE.TetrahedronGeometry(radius);
   const pos = base.attributes.position;
 
-  // collect unique verts
+  // Extract 4 unique vertices from geometry
   const uniq = [];
   const eps = 1e-4;
   const eq = (a, b) =>
-    Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps && Math.abs(a.z - b.z) < eps;
+    Math.abs(a.x - b.x) < eps &&
+    Math.abs(a.y - b.y) < eps &&
+    Math.abs(a.z - b.z) < eps;
 
   for (let i = 0; i < pos.count; i++) {
     const v = new THREE.Vector3().fromBufferAttribute(pos, i);
     if (!uniq.some((u) => eq(u, v))) uniq.push(v);
   }
-  if (uniq.length !== 4) throw new Error(`Expected 4 unique tetra vertices, got ${uniq.length}`);
 
-  // Assign semantic vertices
-  uniq.sort((a, b) => b.y - a.y);
-  const vIdentity = uniq[0];
+  if (uniq.length !== 4) {
+    throw new Error(`Expected 4 unique tetra vertices, got ${uniq.length}`);
+  }
 
-  const remaining = uniq.slice(1);
-  remaining.sort((a, b) => a.x - b.x);
-  const vTrust = remaining[0];
-  const vTruth = remaining[2];
-  const vData = remaining[1];
+  // Map geometry vertices to semantic vertex names
+  // We assign deterministically by Y position first
+  const sorted = [...uniq].sort((a, b) => b.y - a.y);
 
-  const V = { Identity: vIdentity, Trust: vTrust, Truth: vTruth, Data: vData };
+  const semanticVertices = {
+    Identity: sorted[0],
+    Trust: sorted[1],
+    Truth: sorted[2],
+    Data: sorted[3],
+  };
 
-  const faces = [
-    { name: "Identity", verts: ["Trust", "Truth", "Data"] },
-    { name: "Trust", verts: ["Identity", "Truth", "Data"] },
-    { name: "Truth", verts: ["Identity", "Trust", "Data"] },
-    { name: "Data", verts: ["Identity", "Trust", "Truth"] }
-  ];
+  // Align upVertexLabel to +Y
+  const upLabel = schema.topology?.upVertexLabel ?? 'Belief';
+
+  const vertexNameByLabel = {};
+  for (const [name, v] of Object.entries(schema.labels.vertices)) {
+    vertexNameByLabel[v.key] = name;
+  }
+
+  const upVertexName = vertexNameByLabel[upLabel];
+  const upVector = semanticVertices[upVertexName].clone().normalize();
+
+  const qAlign = new THREE.Quaternion().setFromUnitVectors(
+    upVector,
+    new THREE.Vector3(0, 1, 0),
+  );
+
+  for (const key of Object.keys(semanticVertices)) {
+    semanticVertices[key] = semanticVertices[key]
+      .clone()
+      .applyQuaternion(qAlign);
+  }
+
+  const facesDef = schema.topology.faceVertices;
 
   const positions = [];
   const colors = [];
   const faceMeta = [];
 
-  for (const f of faces) {
-    const a = V[f.verts[0]], b = V[f.verts[1]], c = V[f.verts[2]];
-    positions.push(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z);
+  for (const [faceName, verts] of Object.entries(facesDef)) {
+    const a = semanticVertices[verts[0]];
+    const b = semanticVertices[verts[1]];
+    const c = semanticVertices[verts[2]];
 
-    const centroid = new THREE.Vector3().add(a).add(b).add(c).multiplyScalar(1/3);
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+
+    const centroid = new THREE.Vector3()
+      .add(a)
+      .add(b)
+      .add(c)
+      .multiplyScalar(1 / 3);
+
     const normal = new THREE.Vector3()
       .subVectors(b, a)
       .cross(new THREE.Vector3().subVectors(c, a))
       .normalize();
 
-    
-
-    // Ensure face normals point outward (away from origin).
-    // For a convex poly centered at the origin, the face centroid vector points outward.
     if (normal.dot(centroid) < 0) normal.negate();
-faceMeta.push({ name: f.name, verts: f.verts.slice(), centroid, normal });
 
-    const faceColor = parseColor(schema.labels?.faces?.[f.name]?.color, "#cfd8e3");
-    for (let i=0;i<3;i++) colors.push(faceColor.r, faceColor.g, faceColor.b);
+    faceMeta.push({ name: faceName, verts, centroid, normal });
+
+    const faceColor = parseColor(
+      schema.labels?.faces?.[faceName]?.color,
+      '#cfd8e3',
+    );
+
+    for (let i = 0; i < 3; i++) {
+      colors.push(faceColor.r, faceColor.g, faceColor.b);
+    }
   }
 
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geom.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    metalness: 0.10,
-    roughness: 0.60,
+    metalness: 0.1,
+    roughness: 0.6,
     transparent: true,
     opacity: 0.35,
     side: THREE.DoubleSide,
-    depthWrite: true
   });
 
   const mesh = new THREE.Mesh(geom, mat);
   mesh.userData.faceMeta = faceMeta;
-  mesh.userData.vertices = V;
+  mesh.userData.vertices = semanticVertices;
 
   const wire = new THREE.LineSegments(
     new THREE.WireframeGeometry(base),
-    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.10 })
+    new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.1,
+    }),
   );
+
+  wire.applyQuaternion(qAlign);
 
   return { mesh, wire, radius };
 }
@@ -265,10 +337,14 @@ function applyDefaultView({ camera, controls, object, schema }) {
 }
 
 function start(schema) {
-  const canvas = $("canvas");
-  const status = $("status");
+  const canvas = $('canvas');
+  const status = $('status');
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: true,
+  });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -282,7 +358,7 @@ function start(schema) {
   controls.zoomSpeed = 0.8;
   controls.panSpeed = 0.5;
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.60));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.65));
   const key = new THREE.DirectionalLight(0xffffff, 0.85);
   key.position.set(5, 6, 7);
@@ -296,47 +372,86 @@ function start(schema) {
   root.add(wire);
 
   // Labels
-  const faceLabels = new Map();   // name -> { sprite, meta }
+  const faceLabels = new Map(); // name -> { sprite, meta }
   const vertexLabels = new Map(); // name -> sprite
 
   const faceScale = schema?.labels?.faceScale ?? 0.34;
   const vertexScale = schema?.labels?.vertexScale ?? 0.24;
-  const faceInset = (schema?.labels?.faceInset ?? 0.10) * radius;
+  const faceInset = (schema?.labels?.faceInset ?? 0.1) * radius;
   const faceLift = (schema?.labels?.faceNormalLift ?? 0.012) * radius;
 
   for (const f of tetra.userData.faceMeta) {
-    const labelText = schema.labels?.faces?.[f.name]?.text ?? f.name.toUpperCase();
+    const labelText =
+      schema.labels?.faces?.[f.name]?.text ?? f.name.toUpperCase();
     const spr = makeTextSprite(labelText, {
       fontSize: 54,
-      bg: "rgba(0,0,0,0.28)",
+      bg: 'rgba(0,0,0,0.28)',
       baseScale: faceScale,
-      renderOrder: 30
+      renderOrder: 30,
     });
+
+    spr.userData.kind = 'faceLabel';
+    spr.userData.faceName = f.name;
 
     // inset toward origin + tiny lift along normal
     const centroidLen = Math.max(1e-6, f.centroid.length());
     const inward = f.centroid.clone().multiplyScalar(-faceInset / centroidLen);
-    spr.position.copy(f.centroid.clone().add(inward).add(f.normal.clone().multiplyScalar(faceLift)));
+    spr.position.copy(
+      f.centroid
+        .clone()
+        .add(inward)
+        .add(f.normal.clone().multiplyScalar(faceLift)),
+    );
 
     root.add(spr);
     faceLabels.set(f.name, { sprite: spr, meta: f });
   }
 
-  for (const [name, v] of Object.entries(tetra.userData.vertices)) {
-    const key = schema.labels?.vertices?.[name]?.key ?? name[0];
-    const spr = makeTextSprite(key, {
-      fontSize: 56,
-      bg: "rgba(0,0,0,0.22)",
-      baseScale: vertexScale,
-      renderOrder: 20
-    });
-    spr.position.copy(v.clone().multiplyScalar(1.07));
-    root.add(spr);
-    vertexLabels.set(name, spr);
+  // Build lookup: faceName -> opposite semantic vertex name
+  // If a face is defined by 3 semantic vertices, the "missing" one is the opposite corner.
+function intersect3(a, b, c) {
+  return a.filter((x) => b.includes(x) && c.includes(x));
+}
+
+const faces = schema.topology.faceVertices;
+const triples = schema.topology.vertexFaceTriples ?? {};
+
+for (const [labelText, faceTriple] of Object.entries(triples)) {
+  const [f1, f2, f3] = faceTriple;
+  const vset1 = faces[f1];
+  const vset2 = faces[f2];
+  const vset3 = faces[f3];
+  if (!vset1 || !vset2 || !vset3) continue;
+
+  const inter = intersect3(vset1, vset2, vset3);
+  if (inter.length !== 1) {
+    console.warn('vertexFaceTriples ambiguous:', labelText, faceTriple, inter);
+    continue;
   }
 
+  const semanticVertexName = inter[0]; // one of Identity/Truth/Trust/Data
+  const v = tetra.userData.vertices[semanticVertexName];
+  if (!v) continue;
+
+  const spr = makeTextSprite(labelText, {
+    fontSize: 56,
+    bg: 'rgba(0,0,0,0.22)',
+    baseScale: vertexScale,
+    renderOrder: 20,
+  });
+
+  spr.userData.kind = 'vertexLabel';
+  spr.userData.vertexName = semanticVertexName;
+  spr.userData.vertexKey = labelText;
+
+  spr.position.copy(v.clone().multiplyScalar(1.07));
+  root.add(spr);
+  vertexLabels.set(semanticVertexName, spr);
+}
+
+
   applyDefaultView({ camera, controls, object: root, schema });
-  if (status) status.textContent = `schema: ${schema.title ?? "loaded"}`;
+  if (status) status.textContent = `schema: ${schema.title ?? 'loaded'}`;
 
   // UI
   // Default: slow, steady yaw about the *world* vertical axis (Y).
@@ -346,34 +461,61 @@ function start(schema) {
   const WORLD_UP = new THREE.Vector3(0, 1, 0);
   const spinRadPerSec = Number(schema?.spin?.radPerSec ?? 0.25);
 
-  const btnSpin = $("btnSpin");
-  if (btnSpin) btnSpin.textContent = "Pause";
-  $("btnReset")?.addEventListener("click", () => applyDefaultView({ camera, controls, object: root, schema }));
-  btnSpin?.addEventListener("click", () => {
+  const btnSpin = $('btnSpin');
+  if (btnSpin) btnSpin.textContent = 'Pause';
+  $('btnReset')?.addEventListener('click', () =>
+    applyDefaultView({ camera, controls, object: root, schema }),
+  );
+  btnSpin?.addEventListener('click', () => {
     spinning = !spinning;
-    btnSpin.textContent = spinning ? "Pause" : "Spin";
+    btnSpin.textContent = spinning ? 'Pause' : 'Spin';
   });
 
-  // Interaction: stop spin by clicking a face (epistemic "touch arrests motion").
-  // We raycast against the tetrahedron mesh only (not labels), and simply set spinning=false.
+  // Interaction: clicking a face or label stops spin and loads the associated prose into #reader.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  canvas.addEventListener("pointerdown", (event) => {
-    // Only react to primary button / touch
-    if (event.button != null && event.button !== 0) return;
+  const clickTargets = [tetra, ...faceLabels.values()].map(
+    (x) => x.sprite ?? x,
+  );
+  // vertexLabels is a Map(name -> sprite)
+  for (const spr of vertexLabels.values()) clickTargets.push(spr);
 
+  canvas.addEventListener('pointerdown', async (event) => {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
 
-    // Intersect the tetrahedron surface.
-    const hits = raycaster.intersectObject(tetra, false);
-    if (hits.length > 0) {
-      spinning = false;
-      if (btnSpin) btnSpin.textContent = "Spin";
+    // We only care about intersections with the tetrahedron or our label sprites.
+    const hits = raycaster.intersectObjects(clickTargets, true);
+    if (!hits.length) return;
+
+    // Arrest motion immediately (inspection beats animation).
+    spinning = false;
+    if (btnSpin) btnSpin.textContent = 'Spin';
+
+    const hit = hits[0].object;
+
+    // Label sprites carry semantic identity in userData
+    if (hit?.userData?.kind === 'vertexLabel') {
+      await loadLabelProse(
+        schema,
+        hit.userData.vertexKey ?? hit.userData.vertexName,
+      );
+      return;
+    }
+    if (hit?.userData?.kind === 'faceLabel') {
+      await loadLabelProse(schema, hit.userData.faceName);
+      return;
+    }
+
+    // Mesh hit: map triangle index -> semantic face name.
+    const faceIndex = hits[0].faceIndex;
+    if (typeof faceIndex === 'number') {
+      const meta = tetra.userData.faceMeta?.[faceIndex];
+      if (meta?.name) await loadLabelProse(schema, meta.name);
     }
   });
 
@@ -386,15 +528,15 @@ function start(schema) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
-  window.addEventListener("resize", resize);
+  window.addEventListener('resize', resize);
   resize();
 
   // Label policy
   const policy = schema.labelPolicy ?? {};
   const hideBackVertices = policy.hideBackVertices !== false;
   const fadeNearPx = policy.vertexFadeNearFacePx ?? 28;
-  const faceDotStart = policy.faceDotStart ?? 0.10;
-  const faceDotFull = policy.faceDotFull ?? 0.30;
+  const faceDotStart = policy.faceDotStart ?? 0.1;
+  const faceDotFull = policy.faceDotFull ?? 0.3;
 
   // Scratch vectors
   const tmpWorldPos = new THREE.Vector3();
@@ -404,7 +546,9 @@ function start(schema) {
   const tmpOutward = new THREE.Vector3();
   const tetraWorldQuat = new THREE.Quaternion();
 
-  function smoothstep(t) { return t * t * (3 - 2 * t); }
+  function smoothstep(t) {
+    return t * t * (3 - 2 * t);
+  }
 
   function animate() {
     requestAnimationFrame(animate);
@@ -421,15 +565,21 @@ function start(schema) {
       sprite.getWorldPosition(tmpWorldCentroid);
 
       tmpToCam.subVectors(camera.position, tmpWorldCentroid).normalize();
-      tmpWorldNormal.copy(meta.normal).transformDirection(root.matrixWorld).normalize();
+      tmpWorldNormal
+        .copy(meta.normal)
+        .transformDirection(root.matrixWorld)
+        .normalize();
 
       const d = tmpWorldNormal.dot(tmpToCam);
-      const t = clamp01((d - faceDotStart) / Math.max(1e-6, (faceDotFull - faceDotStart)));
+      const t = clamp01(
+        (d - faceDotStart) / Math.max(1e-6, faceDotFull - faceDotStart),
+      );
       const alpha = smoothstep(t);
 
       sprite.material.opacity = alpha;
 
-      if (alpha > 0.25) visibleFacePts.push(projectToScreen(tmpWorldCentroid, camera, canvas));
+      if (alpha > 0.25)
+        visibleFacePts.push(projectToScreen(tmpWorldCentroid, camera, canvas));
     }
 
     // Vertex labels: hemisphere + yield to faces
@@ -482,7 +632,7 @@ function start(schema) {
     console.error(e);
     const status = $("status");
     if (status) status.textContent = "schema: failed";
-    const content = $("content");
+    const content = $("paper");
     if (content) content.innerHTML = `<p style="color:#ffb4b4;margin:0">Failed to start: ${String(e?.message || e)}</p>`;
   }
 })();

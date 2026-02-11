@@ -61,6 +61,53 @@
     "faceInset": 0,
     "faceNormalLift": 0.012
   },
+  "topology": {
+    "faceVertices": {
+      "Identity": [
+        "Trust",
+        "Truth",
+        "Data"
+      ],
+      "Truth": [
+        "Identity",
+        "Trust",
+        "Data"
+      ],
+      "Trust": [
+        "Identity",
+        "Truth",
+        "Data"
+      ],
+      "Data": [
+        "Identity",
+        "Trust",
+        "Truth"
+      ]
+    },
+    "vertexFaceTriples": {
+      "Belief": [
+        "Data",
+        "Truth",
+        "Trust"
+      ],
+      "Probability": [
+        "Identity",
+        "Truth",
+        "Trust"
+      ],
+      "Likelihood": [
+        "Identity",
+        "Data",
+        "Truth"
+      ],
+      "Evidence": [
+        "Identity",
+        "Data",
+        "Trust"
+      ]
+    },
+    "upVertexLabel": "Belief"
+  },
   "labelPolicy": {
     "hideBackVertices": false,
     "vertexFadeNearFacePx": 28,
