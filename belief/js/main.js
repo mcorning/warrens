@@ -354,6 +354,29 @@ function start(schema) {
     btnSpin.textContent = spinning ? "Pause" : "Spin";
   });
 
+  // Interaction: stop spin by clicking a face (epistemic "touch arrests motion").
+  // We raycast against the tetrahedron mesh only (not labels), and simply set spinning=false.
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  canvas.addEventListener("pointerdown", (event) => {
+    // Only react to primary button / touch
+    if (event.button != null && event.button !== 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    // Intersect the tetrahedron surface.
+    const hits = raycaster.intersectObject(tetra, false);
+    if (hits.length > 0) {
+      spinning = false;
+      if (btnSpin) btnSpin.textContent = "Spin";
+    }
+  });
+
   // Resize
   function resize() {
     const rect = canvas.getBoundingClientRect();
