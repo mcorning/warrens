@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Belief — Identity Tetrahedron</title>
+
+  <!-- Import map so OrbitControls (and any addons) can import "three" in-browser -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    :root { --bg:#0b0f14; --panel:#0f1620; --text:#e6edf3; --muted:#9fb0c0; --border:#223041; }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .app{height:100%;display:grid;grid-template-columns:minmax(520px,1.25fr) minmax(320px,0.75fr);gap:12px;padding:12px;box-sizing:border-box;}
+    .card{border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    #view{position:relative;min-height:520px;}
+    #canvas{display:block;width:100%;height:100%;}
+    .hud{position:absolute;left:10px;top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer;font-size:13px;}
+    .btn:hover{background:rgba(255,255,255,.10)}
+    .tag{font-size:12px;color:var(--muted);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.15)}
+    #panel{display:flex;flex-direction:column;min-height:520px;}
+    #toc{padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+    #toc h2{margin:0;font-size:15px;color:var(--text)}
+    .toc-items{display:flex;flex-direction:column;gap:8px}
+    .toc-item{text-align:left;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.12);cursor:pointer;color:var(--text);font-size:14px;}
+    .toc-item:hover{background:rgba(255,255,255,.06)}
+    #content{padding:14px;overflow:auto;line-height:1.45}
+    #content h1,#content h2,#content h3{margin-top:1.0em}
+    #content code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="view" class="card">
+      <div class="hud">
+        <button id="btnReset" class="btn">Reset view</button>
+        <button id="btnSpin" class="btn">Spin</button>
+        <span id="status" class="tag">schema: loading…</span>
+      </div>
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="panel" class="card">
+      <div id="toc">
+        <h2>TOC</h2>
+        <div id="tocItems" class="toc-items"></div>
+      </div>
+      <div id="content">
+        <p style="color:var(--muted);margin:0">Select a TOC item to render its text here.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

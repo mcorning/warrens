@@ -1,0 +1,77 @@
+{
+  "title": "Belief",
+  "geometry": {
+    "radius": 1.0
+  },
+  "defaultView": {
+    "camera": {
+      "fov": 42,
+      "pos": [
+        2.6,
+        2.1,
+        2.6
+      ],
+      "target": [
+        0,
+        0,
+        0
+      ]
+    },
+    "objectRotationEuler": [
+      0,
+      0,
+      0
+    ]
+  },
+  "labels": {
+    "faces": {
+      "Data": {
+        "text": "DATA",
+        "color": "#136464"
+      },
+      "Truth": {
+        "text": "TRUTH",
+        "color": "#5a1a73"
+      },
+      "Trust": {
+        "text": "TRUST",
+        "color": "#5b5b18"
+      },
+      "Identity": {
+        "text": "IDENTITY",
+        "color": "#595959"
+      }
+    },
+    "vertices": {
+      "Identity": {
+        "key": "Belief"
+      },
+      "Trust": {
+        "key": "Probability"
+      },
+      "Truth": {
+        "key": "Likelihood"
+      },
+      "Data": {
+        "key": "Evidence"
+      }
+    },
+    "faceScale": 0.12,
+    "vertexScale": 0.10,
+    "faceInset": 0,
+    "faceNormalLift": 0.012
+  },
+  "labelPolicy": {
+    "hideBackVertices": false,
+    "vertexFadeNearFacePx": 28,
+    "faceDotStart": 0.1,
+    "faceDotFull": 0.3
+  },
+  "toc": [
+    {
+      "id": "intro",
+      "title": "Intro",
+      "src": "./content/intro.md"
+    }
+  ]
+}

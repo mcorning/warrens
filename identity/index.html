@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Figure 1: The Identity Schematic</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  html,body{margin:0;height:100%;background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  svg{display:block;margin:auto}
+  .label{fill:#fff;font-size:18px;font-weight:700;text-anchor:middle;dominant-baseline:middle}
+  .small{font-size:12px;font-weight:600;fill:#ffffff;opacity:.95}
+  .edge-label{font-size:12px;font-weight:600;fill:#cfd3da}
+  .legend{font-size:14px;font-weight:800}
+  .caption{font-size:12px;font-weight:600;fill:#ffffff;opacity:.9}
+</style>
+</head>
+<body>
+<svg width="900" height="650" viewBox="0 0 900 650" role="img" aria-label="Figure 1: The Identity Tetrahedron (planar)">
+  <defs>
+    <circle id="vtx" r="7" fill="#5aa9ff"/>
+    <circle id="mid" r="7" fill="#ffffff"/>
+  </defs>
+
+  <!-- Spacetime (circumcircle of the outer equilateral triangle) -->
+  <circle cx="450.000" cy="313.333" r="233.333" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+
+
+<!-- Identity fill -->
+  <!-- Face fills (must be BEFORE strokes so they sit behind the lines) -->
+  <!-- Outer vertices:   T(450,80)  L(250,430)  R(650,430) -->
+  <!-- Midpoints:        ML(350,255) MR(550,255) MB(450,430) -->
+
+  <!-- Truth face: Recall (Blue) + Processing (Red) = Magenta -->
+  <polygon points="450,80 350,255 550,255" fill="#FF00FF" fill-opacity="0.22"/>
+
+  <!-- Data face: Storage (Green) + Recall (Blue) = Cyan -->
+  <polygon points="250,430 350,255 450,430" fill="#00FFFF" fill-opacity="0.22"/>
+
+  <!-- Trust face: Processing (Red) + Storage (Green) = Yellow -->
+  <polygon points="650,430 550,255 450,430" fill="#FFFF00" fill-opacity="0.22"/>
+
+  <!-- Identity face: closure (R+G+B) = White -->
+  <polygon points="350,255 550,255 450,430" fill="#FFFFFF" fill-opacity="0.35"/>
+
+  <!-- Outer edges -->
+  <line x1="450.0" y1="80.0" x2="250.0" y2="430.0" stroke="#0000FF" stroke-width="5"/>
+  <line x1="450.0" y1="80.0" x2="650.0" y2="430.0" stroke="#FF0000" stroke-width="5"/>
+  <line x1="250.0" y1="430.0" x2="650.0" y2="430.0" stroke="#00FF00" stroke-width="5"/>
+
+  <!-- Outer vertices (intentionally unlabeled) -->
+  <use href="#vtx" x="450.0" y="80.0"/>
+  <use href="#vtx" x="250.0" y="430.0"/>
+  <use href="#vtx" x="650.0" y="430.0"/>
+
+  <!-- Midpoints -->
+  <use href="#mid" x="350.0" y="255.0"/>
+  <use href="#mid" x="550.0" y="255.0"/>
+  <use href="#mid" x="450.0" y="430.0"/>
+
+  <!-- Inner triangle edges -->
+  <line x1="350.0" y1="255.0" x2="550.0" y2="255.0" stroke="#cfd3da" stroke-width="2"/>
+  <line x1="350.0" y1="255.0" x2="450.0" y2="430.0" stroke="#cfd3da" stroke-width="2"/>
+  <line x1="550.0" y1="255.0" x2="450.0" y2="430.0" stroke="#cfd3da" stroke-width="2"/>
+
+  <!-- Region labels (centered in their triangles) -->
+  <text class="label" x="450.000" y="196.667">Truth</text>
+  <text class="label" x="350.000" y="371.667">Data</text>
+  <text class="label" x="550.000" y="371.667">Trust</text>
+  <text class="label" x="450.000" y="313.333">Identity</text>
+
+  <!-- Midpoint labels -->
+  <text class="small" x="300.000" y="247.000">Record</text>
+  <text class="small" x="560.000" y="247.000">Repository</text>
+  <text class="small" x="450.000" y="456.000" text-anchor="middle">Rules</text>
+
+  <!-- Interior edge labels -->
+  <text class="edge-label" x="450.000" y="245.000" text-anchor="middle">immutable</text>
+
+  <text class="edge-label"
+        x="408.682" y="337.539"
+        transform="rotate(60.255 408.682 337.539)"
+        text-anchor="middle">identifier</text>
+
+  <!-- rotate by -60.255 so text reads upright but matches edge direction -->
+  <text class="edge-label"
+        x="491.318" y="337.539"
+        transform="rotate(-60.255 491.318 337.539)"
+        text-anchor="middle">idempotent</text>
+
+  <!-- Legend -->
+  <text class="legend" x="703.333" y="293.333" fill="#FF0000">Storage</text>
+  <text class="legend" x="703.333" y="318.333" fill="#0000FF">Recall</text>
+  <text class="legend" x="703.333" y="343.333" fill="#00FF00">Processing</text>
+  <text class="legend" x="703.333" y="374.333" fill="#FFFF">SpaceTime</text>
+
+  <!-- Spacetime label -->
+
+  <!-- Caption -->
+  <text class="caption" x="450" y="620" text-anchor="middle">Figure 1: The Identity Schematic</text>
+</svg>
+</body>
+</html>

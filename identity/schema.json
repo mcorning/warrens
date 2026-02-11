@@ -1,0 +1,21 @@
+{
+  "paperId": "identity",
+  "faces": [
+    { "id": "data", "label": "Data", "color": "#00FFFF" },
+    { "id": "truth", "label": "Truth", "color": "#FF00FF" },
+    { "id": "trust", "label": "Trust", "color": "#FFFF00" },
+    { "id": "identity", "label": "Identity", "color": "#FFFFFF" }
+  ],
+  "vertexLabels": {
+    "apex": "Belief",
+    "identityVertices": {
+      "data+truth": "Likelihood",
+      "truth+trust": "Evidence",
+      "data+trust": "Probability"
+    }
+  },
+  "defaultView": {
+    "hideFace": "data",
+    "rollPreference": { "rightOf": ["truth", "trust"] }
+  }
+}
